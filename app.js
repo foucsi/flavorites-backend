@@ -5,12 +5,14 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+/* const passport = require('passport'); */
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
-var contentsRouter = require('./routes/contents');
 
 var app = express();
+/* app.use(passport.initialize());
+app.use(passport.session()); */
 
 const cors = require("cors");
 app.use(cors());
@@ -23,6 +25,5 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/contents', contentsRouter);
 
 module.exports = app;
