@@ -1,14 +1,13 @@
 var express = require("express");
 var router = express.Router();
 
-const multer = require("multer");
-const cloudinary = require("cloudinary").v2;
-
 const User = require("../models/users");
 const { checkBody } = require("../modules/checkBody");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
 const ObjectId = require("mongodb").ObjectId;
+const cloudinary = require("../utils/cloudinary");
+const upload = require("../utils/multer");
 
 router.post("/signup", (req, res) => {
   console.log("signup route called");
@@ -28,6 +27,8 @@ router.post("/signup", (req, res) => {
         password: hash,
         token: uid2(32),
         profilImg: req.body.profilImg,
+        role: "Jury",
+        phoneNumber: "",
       });
 
       newUser.save().then((newDoc) => {
@@ -55,6 +56,8 @@ router.post("/signin", (req, res) => {
         firstname: data.firstname,
         lastname: data.lastname,
         profilImg: data.profilImg,
+        role: data.role,
+        phoneNumber: data.phoneNumber,
       });
     } else {
       res.json({ result: false, error: "User not found or wrong password" });
@@ -161,37 +164,34 @@ router.post("/updateContents", function (req, res, next) {
     .catch((error) => console.log(error));
 });
 
-const cloud_name = process.env.CLOUDINARY_NAME;
-const api_key = process.env.CLOUDINARY_API_KEY;
-const api_secret = process.env.CLOUDINARY_API_SECRET;
 
-cloudinary.config({
-  cloud_name: cloud_name,
-  api_key: api_key,
-  api_secret : api_secret,
-});
-
-// Configuration de Multer pour le téléchargement du fichier
-const upload = multer({ dest: "tmp/" });
-
-// Route pour télécharger et envoyer l'image sur Cloudinary
-router.post("/uploadImage", upload.single("file"), async (req, res) => {
+router.put("/uploadProfilImg/:token", upload.single("image"), async (req, res) => {
   try {
-    // Envoyer l'image sur Cloudinary
-    const result = await cloudinary.uploader.upload(req.file.path);
-
-    // Supprimer le fichier temporaire
-    fs.unlinkSync(req.file.path);
-
-    // Renvoyer l'URL de l'image téléchargée
-    res.json({ imageUrl: result.secure_url });
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({
-        error: "Une erreur est survenue lors du téléchargement de l'image.",
-      });
+    let user = await User.findById(req.params.id);
+    // Delete image from cloudinary
+    await cloudinary.uploader.destroy(user.cloudinary_id);
+    // Upload image to cloudinary
+    let result;
+    if (req.file) {
+      result = await cloudinary.uploader.upload(req.file.path);
+    }
+    const data = {
+      avatar: result?.secure_url || user.avatar,
+      cloudinary_id: result?.public_id || user.cloudinary_id,
+    };
+    user = await User.findByIdAndUpdate(req.params.id, data, { new: true });
+    res.json(user);
+  } catch (err) {
+    console.log(err);
+  }
+});
+router.get("/photoUser/:token", async (req, res) => {
+  const token = req.params.token;
+  const user = await User.findOne({ token });
+  if (user) {
+    res.json({ result: true, profilePicture: user.photo });
+  } else {
+    res.json({ result: false, error: "User has no profile picture" });
   }
 });
 
