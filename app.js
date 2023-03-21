@@ -5,14 +5,16 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-/* const passport = require('passport'); */
+const bodyParser = require('body-parser');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
 var app = express();
-/* app.use(passport.initialize());
-app.use(passport.session()); */
+
+// Ajoutez les middlewares après avoir initialisé l'application Express
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 const cors = require("cors");
 app.use(cors());

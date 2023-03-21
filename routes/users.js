@@ -6,8 +6,7 @@ const { checkBody } = require("../modules/checkBody");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
 const ObjectId = require("mongodb").ObjectId;
-const cloudinary = require("../utils/cloudinary");
-const upload = require("../utils/multer");
+const {cloudinary} = require("../utils/cloudinary");
 
 router.post("/signup", (req, res) => {
   console.log("signup route called");
@@ -165,34 +164,45 @@ router.post("/updateContents", function (req, res, next) {
 });
 
 
-router.put("/uploadProfilImg/:token", upload.single("image"), async (req, res) => {
+router.post("/profile-pic/:token", async (req, res) => {
+  if(!req.body.file){
+    res.json({result : false, error : "no file sent"})
+    return
+  }
   try {
-    let user = await User.findById(req.params.id);
-    // Delete image from cloudinary
-    await cloudinary.uploader.destroy(user.cloudinary_id);
-    // Upload image to cloudinary
-    let result;
-    if (req.file) {
-      result = await cloudinary.uploader.upload(req.file.path);
+    const fileStr = req.body.file
+    const uploadResponse= await cloudinary.uploader.upload(fileStr , {
+      upload_preset : "ml_default"
+    }); 
+    console.log(uploadResponse)
+    const updatedUser = await User.findOneAndUpdate(
+      { token: req.params.token },
+      {
+        profilImg: uploadResponse.secure_url,
+      },
+      { new: true }
+    );
+    res.json({result : true, profilImg : updatedUser.profilImg })
+  }
+  catch (err) {
+    console.log(err)
+    res.json({result : false , error : "something went wrong"})
+  } 
+})
+
+router.get("/profile-pic/:token", (req, res) => {
+  User.findOne({token : req.params.token}).then((data) => {
+    if(!data){
+      res.json({result : false, error : "user not found"})
+      return 
     }
-    const data = {
-      avatar: result?.secure_url || user.avatar,
-      cloudinary_id: result?.public_id || user.cloudinary_id,
-    };
-    user = await User.findByIdAndUpdate(req.params.id, data, { new: true });
-    res.json(user);
-  } catch (err) {
-    console.log(err);
-  }
-});
-router.get("/photoUser/:token", async (req, res) => {
-  const token = req.params.token;
-  const user = await User.findOne({ token });
-  if (user) {
-    res.json({ result: true, profilePicture: user.photo });
-  } else {
-    res.json({ result: false, error: "User has no profile picture" });
-  }
-});
+    if(!data.profilePic){
+      res.json({result : false, error : "picture not found"})
+      return
+    }
+    res.json({result : true, profilePic : data.profilePic})
+  })
+})
+
 
 module.exports = router;
