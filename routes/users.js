@@ -65,7 +65,6 @@ router.post("/signin", (req, res) => {
 });
 
 router.put("/profilUpdate", (req, res) => {
-  console.log(req.body);
   User.findOneAndUpdate(
     { _id: req.body.userId },
     {
